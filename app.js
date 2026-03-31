@@ -654,6 +654,49 @@ function initEventListeners() {
   });
 }
 
+// ── Hash Routing ──────────────────────────────────────────────
+function updateHash() {
+  if (state.currentScreen === 'knowledge' || state.currentScreen === 'quiz') {
+    var modId = getModule(state.currentModuleIndex).id;
+    history.replaceState(null, '', '#module-' + modId);
+  } else if (state.currentScreen === 'moduleMap') {
+    history.replaceState(null, '', '#modules');
+  }
+}
+
+function handleHashRoute() {
+  var hash = window.location.hash.replace('#', '');
+  if (!hash) return false;
+
+  var match = hash.match(/^module-(\d+)$/);
+  if (match) {
+    var targetId = parseInt(match[1]);
+    var idx = COURSE_DATA.modules.findIndex(function(m) { return m.id === targetId; });
+    if (idx >= 0) {
+      state.currentModuleIndex = idx;
+      state.currentSectionIndex = 0;
+      state.currentQuestionIndex = 0;
+      state.questionAnswered = false;
+      showKnowledgeScreen();
+      return true;
+    }
+  }
+
+  if (hash === 'modules') {
+    showModuleMapScreen();
+    return true;
+  }
+
+  return false;
+}
+
+// Patch showScreen to update hash
+var _origShowScreen = showScreen;
+showScreen = function(name) {
+  _origShowScreen(name);
+  setTimeout(updateHash, 50);
+};
+
 // ── Init ──────────────────────────────────────────────────────
 function init() {
   // Set default timer preset UI
@@ -665,7 +708,16 @@ function init() {
 
   updateGlobalProgress();
   initEventListeners();
-  showScreen('cover');
+
+  // Check hash route first, fall back to cover
+  if (!handleHashRoute()) {
+    showScreen('cover');
+  }
+
+  // Listen for hash changes
+  window.addEventListener('hashchange', function() {
+    handleHashRoute();
+  });
 }
 
 // Run when DOM is ready
